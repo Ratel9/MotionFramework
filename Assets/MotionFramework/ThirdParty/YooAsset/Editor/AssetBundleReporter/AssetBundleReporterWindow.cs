@@ -10,9 +10,9 @@ namespace YooAsset.Editor
 	public class AssetBundleReporterWindow : EditorWindow
 	{
 		[MenuItem("YooAsset/AssetBundle Reporter", false, 103)]
-		public static void OpenWindow()
+		public static void ShowExample()
 		{
-			AssetBundleReporterWindow window = GetWindow<AssetBundleReporterWindow>("资源包报告工具", true, WindowsDefine.DockedWindowTypes);
+			AssetBundleReporterWindow window = GetWindow<AssetBundleReporterWindow>("资源包报告工具", true, EditorDefine.DockedWindowTypes);
 			window.minSize = new Vector2(800, 600);
 		}
 
@@ -55,7 +55,7 @@ namespace YooAsset.Editor
 				VisualElement root = this.rootVisualElement;
 
 				// 加载布局文件
-				var visualAsset = UxmlLoader.LoadWindowUXML<AssetBundleReporterWindow>();
+				var visualAsset =  EditorHelper.LoadWindowUXML<AssetBundleReporterWindow>();
 				if (visualAsset == null)
 					return;
 				
@@ -109,7 +109,7 @@ namespace YooAsset.Editor
 				return;
 
 			_reportFilePath = selectFilePath;
-			string jsonData = FileUtility.ReadAllText(_reportFilePath);
+			string jsonData = FileUtility.ReadFile(_reportFilePath);
 			_buildReport = BuildReport.Deserialize(jsonData);
 			_assetListViewer.FillViewData(_buildReport, _searchKeyWord);
 			_bundleListViewer.FillViewData(_buildReport, _reportFilePath, _searchKeyWord);

@@ -81,14 +81,6 @@ namespace YooAsset
 				_taskCompletionSource.TrySetResult(null);
 		}
 
-		/// <summary>
-		/// 清空完成回调
-		/// </summary>
-		protected void ClearCompletedCallback()
-		{
-			_callback = null;
-		}
-
 		#region 异步编程相关
 		bool IEnumerator.MoveNext()
 		{

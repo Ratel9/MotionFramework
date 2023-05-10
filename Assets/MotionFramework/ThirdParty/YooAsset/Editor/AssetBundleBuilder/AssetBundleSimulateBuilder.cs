@@ -1,37 +1,43 @@
 ﻿using UnityEditor;
-using UnityEngine;
 
 namespace YooAsset.Editor
 {
 	public static class AssetBundleSimulateBuilder
 	{
+		private static string _manifestFilePath = string.Empty;
+
 		/// <summary>
 		/// 模拟构建
 		/// </summary>
-		public static string SimulateBuild(string packageName)
+		public static void SimulateBuild()
 		{
-			Debug.Log($"Begin to create simulate package : {packageName}");
 			string defaultOutputRoot = AssetBundleBuilderHelper.GetDefaultOutputRoot();
 			BuildParameters buildParameters = new BuildParameters();
 			buildParameters.OutputRoot = defaultOutputRoot;
 			buildParameters.BuildTarget = EditorUserBuildSettings.activeBuildTarget;
 			buildParameters.BuildMode = EBuildMode.SimulateBuild;
-			buildParameters.PackageName = packageName;
-			buildParameters.PackageVersion = "Simulate";
-			buildParameters.EnableLog = false;
+			buildParameters.BuildVersion = 999;
+			buildParameters.EnableAddressable = AssetBundleCollectorSettingData.Setting.EnableAddressable;
 
 			AssetBundleBuilder builder = new AssetBundleBuilder();
-			var buildResult = builder.Run(buildParameters);
-			if (buildResult.Success)
+			bool buildResult = builder.Run(buildParameters);
+			if (buildResult)
 			{
-				string manifestFileName = YooAssetSettingsData.GetManifestBinaryFileName(buildParameters.PackageName, buildParameters.PackageVersion);
-				string manifestFilePath = $"{buildResult.OutputPackageDirectory}/{manifestFileName}";
-				return manifestFilePath;
+				string pipelineOutputDirectory = AssetBundleBuilderHelper.MakePipelineOutputDirectory(buildParameters.OutputRoot, buildParameters.BuildTarget);
+				_manifestFilePath = $"{pipelineOutputDirectory}_{EBuildMode.SimulateBuild}/{YooAssetSettingsData.GetPatchManifestFileName(buildParameters.BuildVersion)}";
 			}
 			else
 			{
-				return null;
+				_manifestFilePath = null;
 			}
+		}
+		
+		/// <summary>
+		/// 获取构建的补丁清单路径
+		/// </summary>
+		public static string GetPatchManifestPath()
+		{
+			return _manifestFilePath;
 		}
 	}
 }

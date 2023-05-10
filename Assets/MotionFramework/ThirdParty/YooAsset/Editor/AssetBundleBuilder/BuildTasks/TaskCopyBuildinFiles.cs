@@ -11,90 +11,58 @@ namespace YooAsset.Editor
 	{
 		void IBuildTask.Run(BuildContext context)
 		{
-			var buildParametersContext = context.GetContextObject<BuildParametersContext>();
-			var manifestContext = context.GetContextObject<ManifestContext>();
-			var buildMode = buildParametersContext.Parameters.BuildMode;
-			if (buildMode == EBuildMode.ForceRebuild || buildMode == EBuildMode.IncrementalBuild)
+			// 注意：我们只有在强制重建的时候才会拷贝
+			var buildParameters = context.GetContextObject<BuildParametersContext>();
+			if (buildParameters.Parameters.CopyBuildinTagFiles)
 			{
-				if (buildParametersContext.Parameters.CopyBuildinFileOption != ECopyBuildinFileOption.None)
-				{
-					CopyBuildinFilesToStreaming(buildParametersContext, manifestContext);
-				}
+				// 清空流目录
+				AssetBundleBuilderHelper.ClearStreamingAssetsFolder();
+
+				// 拷贝内置文件
+				CopyBuildinFilesToStreaming(buildParameters.PipelineOutputDirectory, buildParameters.Parameters.BuildVersion);
 			}
 		}
 
-		/// <summary>
-		/// 拷贝首包资源文件
-		/// </summary>
-		private void CopyBuildinFilesToStreaming(BuildParametersContext buildParametersContext, ManifestContext manifestContext)
+		private void CopyBuildinFilesToStreaming(string pipelineOutputDirectory, int buildVersion)
 		{
-			ECopyBuildinFileOption option = buildParametersContext.Parameters.CopyBuildinFileOption;
-			string packageOutputDirectory = buildParametersContext.GetPackageOutputDirectory();
-			string streamingAssetsDirectory = AssetBundleBuilderHelper.GetStreamingAssetsFolderPath();
-			string buildPackageName = buildParametersContext.Parameters.PackageName;
-			string buildPackageVersion = buildParametersContext.Parameters.PackageVersion;
-
 			// 加载补丁清单
-			PackageManifest manifest = manifestContext.Manifest;
+			PatchManifest patchManifest = AssetBundleBuilderHelper.LoadPatchManifestFile(pipelineOutputDirectory, buildVersion);
 
-			// 清空流目录
-			if (option == ECopyBuildinFileOption.ClearAndCopyAll || option == ECopyBuildinFileOption.ClearAndCopyByTags)
+			// 拷贝文件列表
+			foreach (var patchBundle in patchManifest.BundleList)
 			{
-				AssetBundleBuilderHelper.ClearStreamingAssetsFolder();
-			}
+				if (patchBundle.IsBuildin == false)
+					continue;
 
-			// 拷贝补丁清单文件
-			{
-				string fileName = YooAssetSettingsData.GetManifestBinaryFileName(buildPackageName, buildPackageVersion);
-				string sourcePath = $"{packageOutputDirectory}/{fileName}";
-				string destPath = $"{streamingAssetsDirectory}/{fileName}";
+				string sourcePath = $"{pipelineOutputDirectory}/{patchBundle.BundleName}";
+				string destPath = $"{AssetBundleBuilderHelper.GetStreamingAssetsFolderPath()}/{patchBundle.Hash}";
 				EditorTools.CopyFile(sourcePath, destPath, true);
 			}
 
-			// 拷贝补丁清单哈希文件
+			// 拷贝清单文件
 			{
-				string fileName = YooAssetSettingsData.GetPackageHashFileName(buildPackageName, buildPackageVersion);
-				string sourcePath = $"{packageOutputDirectory}/{fileName}";
-				string destPath = $"{streamingAssetsDirectory}/{fileName}";
+				string sourcePath = $"{pipelineOutputDirectory}/{YooAssetSettingsData.GetPatchManifestFileName(buildVersion)}";
+				string destPath = $"{AssetBundleBuilderHelper.GetStreamingAssetsFolderPath()}/{YooAssetSettingsData.GetPatchManifestFileName(buildVersion)}";
 				EditorTools.CopyFile(sourcePath, destPath, true);
 			}
 
-			// 拷贝补丁清单版本文件
+			// 拷贝清单哈希文件
 			{
-				string fileName = YooAssetSettingsData.GetPackageVersionFileName(buildPackageName);
-				string sourcePath = $"{packageOutputDirectory}/{fileName}";
-				string destPath = $"{streamingAssetsDirectory}/{fileName}";
+				string sourcePath = $"{pipelineOutputDirectory}/{YooAssetSettingsData.GetPatchManifestHashFileName(buildVersion)}";
+				string destPath = $"{AssetBundleBuilderHelper.GetStreamingAssetsFolderPath()}/{YooAssetSettingsData.GetPatchManifestHashFileName(buildVersion)}";
 				EditorTools.CopyFile(sourcePath, destPath, true);
 			}
 
-			// 拷贝文件列表（所有文件）
-			if (option == ECopyBuildinFileOption.ClearAndCopyAll || option == ECopyBuildinFileOption.OnlyCopyAll)
-			{		
-				foreach (var packageBundle in manifest.BundleList)
-				{
-					string sourcePath = $"{packageOutputDirectory}/{packageBundle.FileName}";
-					string destPath = $"{streamingAssetsDirectory}/{packageBundle.FileName}";
-					EditorTools.CopyFile(sourcePath, destPath, true);
-				}
-			}
-
-			// 拷贝文件列表（带标签的文件）
-			if (option == ECopyBuildinFileOption.ClearAndCopyByTags || option == ECopyBuildinFileOption.OnlyCopyByTags)
+			// 拷贝静态版本文件
 			{
-				string[] tags = buildParametersContext.Parameters.CopyBuildinFileTags.Split(';');
-				foreach (var packageBundle in manifest.BundleList)
-				{
-					if (packageBundle.HasTag(tags) == false)
-						continue;
-					string sourcePath = $"{packageOutputDirectory}/{packageBundle.FileName}";
-					string destPath = $"{streamingAssetsDirectory}/{packageBundle.FileName}";
-					EditorTools.CopyFile(sourcePath, destPath, true);
-				}
+				string sourcePath = $"{pipelineOutputDirectory}/{YooAssetSettings.VersionFileName}";
+				string destPath = $"{AssetBundleBuilderHelper.GetStreamingAssetsFolderPath()}/{YooAssetSettings.VersionFileName}";
+				EditorTools.CopyFile(sourcePath, destPath, true);
 			}
 
 			// 刷新目录
 			AssetDatabase.Refresh();
-			BuildLogger.Log($"内置文件拷贝完成：{streamingAssetsDirectory}");
+			BuildRunner.Log($"内置文件拷贝完成：{AssetBundleBuilderHelper.GetStreamingAssetsFolderPath()}");
 		}
 	}
 }

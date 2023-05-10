@@ -9,11 +9,6 @@ namespace YooAsset.Editor
 	public class ReportSummary
 	{
 		/// <summary>
-		/// YooAsset版本
-		/// </summary>
-		public string YooVersion;
-
-		/// <summary>
 		/// 引擎版本
 		/// </summary>
 		public string UnityVersion;
@@ -21,7 +16,7 @@ namespace YooAsset.Editor
 		/// <summary>
 		/// 构建时间
 		/// </summary>
-		public string BuildDate;
+		public string BuildTime;
 		
 		/// <summary>
 		/// 构建耗时（单位：秒）
@@ -34,24 +29,19 @@ namespace YooAsset.Editor
 		public BuildTarget BuildTarget;
 
 		/// <summary>
-		/// 构建管线
-		/// </summary>
-		public EBuildPipeline BuildPipeline;
-
-		/// <summary>
 		/// 构建模式
 		/// </summary>
 		public EBuildMode BuildMode;
 
 		/// <summary>
-		/// 构建包裹名称
+		/// 构建版本
 		/// </summary>
-		public string BuildPackageName;
+		public int BuildVersion;
 
 		/// <summary>
-		/// 构建包裹版本
+		/// 内置资源标签
 		/// </summary>
-		public string BuildPackageVersion;
+		public string BuildinTags;
 
 		/// <summary>
 		/// 启用可寻址资源定位
@@ -59,9 +49,24 @@ namespace YooAsset.Editor
 		public bool EnableAddressable;
 
 		/// <summary>
-		/// 资源包名唯一化
+		/// 追加文件扩展名
 		/// </summary>
-		public bool UniqueBundleName;
+		public bool AppendFileExtension;
+
+		/// <summary>
+		/// 拷贝内置资源文件
+		/// </summary>
+		public bool CopyBuildinTagFiles;
+
+		/// <summary>
+		/// 自动收集着色器
+		/// </summary>
+		public bool AutoCollectShaders;
+
+		/// <summary>
+		/// 自动收集的着色器资源包名称
+		/// </summary>
+		public string ShadersBundleName;
 
 		/// <summary>
 		/// 加密服务类名称
@@ -69,16 +74,16 @@ namespace YooAsset.Editor
 		public string EncryptionServicesClassName;
 
 		// 构建参数
-		public EOutputNameStyle OutputNameStyle;
 		public ECompressOption CompressOption;
 		public bool DisableWriteTypeTree;
 		public bool IgnoreTypeTreeChanges;
 
 		// 构建结果
 		public int AssetFileTotalCount;
-		public int MainAssetTotalCount;
 		public int AllBundleTotalCount;
 		public long AllBundleTotalSize;
+		public int BuildinBundleTotalCount;
+		public long BuildinBundleTotalSize;
 		public int EncryptedBundleTotalCount;
 		public long EncryptedBundleTotalSize;
 		public int RawBundleTotalCount;

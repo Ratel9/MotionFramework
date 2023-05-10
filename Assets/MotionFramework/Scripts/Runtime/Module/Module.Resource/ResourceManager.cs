@@ -17,17 +17,13 @@ namespace MotionFramework.Resource
 	/// </summary>
 	public sealed class ResourceManager : ModuleSingleton<ResourceManager>, IModule
 	{
-		private InitializeParameters _createParameters;
-		private ResourcePackage _defaultPackage;
-		private string _locationRoot;
+		private YooAssets.InitializeParameters _createParameters;
 
 		void IModule.OnCreate(System.Object param)
 		{
-			_createParameters = param as InitializeParameters;
+			_createParameters = param as YooAssets.InitializeParameters;
 			if (_createParameters == null)
 				throw new Exception($"{nameof(ResourceManager)} create param is invalid.");
-
-			YooAssets.Initialize();
 		}
 		void IModule.OnUpdate()
 		{
@@ -48,12 +44,9 @@ namespace MotionFramework.Resource
 		/// <summary>
 		/// 异步初始化
 		/// </summary>
-		public InitializationOperation InitializeAsync(string locationRoot, string packageName = "DefaultPackage")
+		public InitializationOperation InitializeAsync()
 		{
-			_locationRoot = locationRoot;
-			_defaultPackage = YooAssets.CreatePackage(packageName);
-			YooAssets.SetDefaultPackage(_defaultPackage);
-			return _defaultPackage.InitializeAsync(_createParameters);
+			return YooAssets.InitializeAsync(_createParameters);
 		}
 
 		/// <summary>
@@ -61,17 +54,17 @@ namespace MotionFramework.Resource
 		/// </summary>
 		/// <param name="updateResourceVersion">更新的资源版本号</param>
 		/// <param name="timeout">超时时间</param>
-		public UpdatePackageManifestOperation UpdateManifestAsync(string updateResourceVersion, bool autoSaveVersion, int timeout)
+		public UpdateManifestOperation UpdateManifestAsync(int updateResourceVersion, int timeout)
 		{
-			return _defaultPackage.UpdatePackageManifestAsync(updateResourceVersion, autoSaveVersion, timeout);
+			return YooAssets.UpdateManifestAsync(updateResourceVersion, timeout);
 		}
 
 		/// <summary>
 		/// 获取资源版本号
 		/// </summary>
-		public string GetResourceVersion()
+		public int GetResourceVersion()
 		{
-			return _defaultPackage.GetPackageVersion();
+			return YooAssets.GetResourceVersion();
 		}
 
 		/// <summary>
@@ -96,7 +89,7 @@ namespace MotionFramework.Resource
 		/// </summary>
 		public void UnloadUnusedAssets()
 		{
-			_defaultPackage.UnloadUnusedAssets();
+			YooAssets.UnloadUnusedAssets();
 		}
 
 		/// <summary>
@@ -104,7 +97,7 @@ namespace MotionFramework.Resource
 		/// </summary>
 		public void ForceUnloadAllAssets()
 		{
-			_defaultPackage.ForceUnloadAllAssets();
+			YooAssets.ForceUnloadAllAssets();
 		}
 
 		/// <summary>
@@ -121,7 +114,6 @@ namespace MotionFramework.Resource
 		/// </summary>
 		public SceneOperationHandle LoadSceneAsync(string location, LoadSceneMode sceneMode = LoadSceneMode.Single, bool activeOnLoad = true, int priority = 100)
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadSceneAsync(location, sceneMode, activeOnLoad, priority);
 		}
 		#endregion
@@ -133,12 +125,10 @@ namespace MotionFramework.Resource
 		/// <param name="location">资源对象相对路径</param>
 		public AssetOperationHandle LoadAssetSync<TObject>(string location) where TObject : UnityEngine.Object
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadAssetSync<TObject>(location);
 		}
 		public AssetOperationHandle LoadAssetSync(System.Type type, string location)
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadAssetSync(location, type);
 		}
 
@@ -148,12 +138,10 @@ namespace MotionFramework.Resource
 		/// <param name="location">资源对象相对路径</param>
 		public SubAssetsOperationHandle LoadSubAssetsSync<TObject>(string location) where TObject : UnityEngine.Object
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadSubAssetsSync<TObject>(location);
 		}
 		public SubAssetsOperationHandle LoadSubAssetsSync(System.Type type, string location)
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadSubAssetsSync(location, type);
 		}
 
@@ -164,12 +152,10 @@ namespace MotionFramework.Resource
 		/// <param name="location">资源对象相对路径</param>
 		public AssetOperationHandle LoadAssetAsync<TObject>(string location) where TObject : UnityEngine.Object
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadAssetAsync<TObject>(location);
 		}
 		public AssetOperationHandle LoadAssetAsync(System.Type type, string location)
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadAssetAsync(location, type);
 		}
 
@@ -179,12 +165,10 @@ namespace MotionFramework.Resource
 		/// <param name="location">资源对象相对路径</param>
 		public SubAssetsOperationHandle LoadSubAssetsAsync<TObject>(string location) where TObject : UnityEngine.Object
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadSubAssetsAsync<TObject>(location);
 		}
 		public SubAssetsOperationHandle LoadSubAssetsAsync(System.Type type, string location)
 		{
-			location = _locationRoot + location;
 			return YooAssets.LoadSubAssetsAsync(location, type);
 		}
 		#endregion
@@ -198,7 +182,7 @@ namespace MotionFramework.Resource
 		/// <param name="failedTryAgain">下载失败的重试次数</param>
 		public DownloaderOperation CreateDLCDownloader(string dlcTag, int fileLoadingMaxNumber, int failedTryAgain)
 		{
-			return YooAssets.CreateResourceDownloader(dlcTag, fileLoadingMaxNumber, failedTryAgain);
+			return YooAssets.CreatePatchDownloader(dlcTag, fileLoadingMaxNumber, failedTryAgain);
 		}
 
 		/// <summary>
@@ -209,7 +193,7 @@ namespace MotionFramework.Resource
 		/// <param name="failedTryAgain">下载失败的重试次数</param>
 		public DownloaderOperation CreateDLCDownloader(string[] dlcTags, int fileLoadingMaxNumber, int failedTryAgain)
 		{
-			return YooAssets.CreateResourceDownloader(dlcTags, fileLoadingMaxNumber, failedTryAgain);
+			return YooAssets.CreatePatchDownloader(dlcTags, fileLoadingMaxNumber, failedTryAgain);
 		}
 
 		/// <summary>

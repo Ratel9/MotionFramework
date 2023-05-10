@@ -1,9 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace YooAsset
 {
-	public sealed class SubAssetsOperationHandle : OperationHandleBase, IDisposable
+	public sealed class SubAssetsOperationHandle : OperationHandleBase
 	{
 		private System.Action<SubAssetsOperationHandle> _callback;
 
@@ -22,7 +21,7 @@ namespace YooAsset
 		{
 			add
 			{
-				if (IsValidWithWarning == false)
+				if (IsValid == false)
 					throw new System.Exception($"{nameof(SubAssetsOperationHandle)} is invalid");
 				if (Provider.IsDone)
 					value.Invoke(this);
@@ -31,9 +30,22 @@ namespace YooAsset
 			}
 			remove
 			{
-				if (IsValidWithWarning == false)
+				if (IsValid == false)
 					throw new System.Exception($"{nameof(SubAssetsOperationHandle)} is invalid");
 				_callback -= value;
+			}
+		}
+
+		/// <summary>
+		/// 子资源对象集合
+		/// </summary>
+		public UnityEngine.Object[] AllAssetObjects
+		{
+			get
+			{
+				if (IsValid == false)
+					return null;
+				return Provider.AllAssetObjects;
 			}
 		}
 
@@ -42,7 +54,7 @@ namespace YooAsset
 		/// </summary>
 		public void WaitForAsyncComplete()
 		{
-			if (IsValidWithWarning == false)
+			if (IsValid == false)
 				return;
 			Provider.WaitForAsyncComplete();
 		}
@@ -55,27 +67,6 @@ namespace YooAsset
 			this.ReleaseInternal();
 		}
 
-		/// <summary>
-		/// 释放资源句柄
-		/// </summary>
-		public void Dispose()
-		{
-			this.ReleaseInternal();
-		}
-
-
-		/// <summary>
-		/// 子资源对象集合
-		/// </summary>
-		public UnityEngine.Object[] AllAssetObjects
-		{
-			get
-			{
-				if (IsValidWithWarning == false)
-					return null;
-				return Provider.AllAssetObjects;
-			}
-		}
 
 		/// <summary>
 		/// 获取子资源对象
@@ -84,7 +75,7 @@ namespace YooAsset
 		/// <param name="assetName">子资源对象名称</param>
 		public TObject GetSubAssetObject<TObject>(string assetName) where TObject : UnityEngine.Object
 		{
-			if (IsValidWithWarning == false)
+			if (IsValid == false)
 				return null;
 
 			foreach (var assetObject in Provider.AllAssetObjects)
@@ -103,7 +94,7 @@ namespace YooAsset
 		/// <typeparam name="TObject">子资源对象类型</typeparam>
 		public TObject[] GetSubAssetObjects<TObject>() where TObject : UnityEngine.Object
 		{
-			if (IsValidWithWarning == false)
+			if (IsValid == false)
 				return null;
 
 			List<TObject> ret = new List<TObject>(Provider.AllAssetObjects.Length);

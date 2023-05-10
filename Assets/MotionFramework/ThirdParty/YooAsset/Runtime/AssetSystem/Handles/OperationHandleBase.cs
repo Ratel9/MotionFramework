@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 
 namespace YooAsset
 {
@@ -15,6 +14,7 @@ namespace YooAsset
 		}
 		internal abstract void InvokeCallback();
 
+
 		/// <summary>
 		/// 获取资源信息
 		/// </summary>
@@ -24,29 +24,17 @@ namespace YooAsset
 		}
 
 		/// <summary>
-		/// 获取下载报告
-		/// </summary>
-		public DownloadReport GetDownloadReport()
-		{
-			if (IsValidWithWarning == false)
-			{
-				return DownloadReport.CreateDefaultReport();
-			}
-			return Provider.GetDownloadReport();
-		}
-
-		/// <summary>
 		/// 当前状态
 		/// </summary>
 		public EOperationStatus Status
 		{
 			get
 			{
-				if (IsValidWithWarning == false)
+				if (IsValid == false)
 					return EOperationStatus.None;
-				if (Provider.Status == ProviderBase.EStatus.Failed)
+				if (Provider.Status == ProviderBase.EStatus.Fail)
 					return EOperationStatus.Failed;
-				else if (Provider.Status == ProviderBase.EStatus.Succeed)
+				else if (Provider.Status == ProviderBase.EStatus.Success)
 					return EOperationStatus.Succeed;
 				else
 					return EOperationStatus.None;
@@ -60,7 +48,7 @@ namespace YooAsset
 		{
 			get
 			{
-				if (IsValidWithWarning == false)
+				if (IsValid == false)
 					return string.Empty;
 				return Provider.LastError;
 			}
@@ -73,7 +61,7 @@ namespace YooAsset
 		{
 			get
 			{
-				if (IsValidWithWarning == false)
+				if (IsValid == false)
 					return 0;
 				return Provider.Progress;
 			}
@@ -86,7 +74,7 @@ namespace YooAsset
 		{
 			get
 			{
-				if (IsValidWithWarning == false)
+				if (IsValid == false)
 					return false;
 				return Provider.IsDone;
 			}
@@ -96,20 +84,6 @@ namespace YooAsset
 		/// 句柄是否有效
 		/// </summary>
 		public bool IsValid
-		{
-			get
-			{
-				if (Provider != null && Provider.IsDestroyed == false)
-					return true;
-				else
-					return false;
-			}
-		}
-
-		/// <summary>
-		/// 句柄是否有效
-		/// </summary>
-		internal bool IsValidWithWarning
 		{
 			get
 			{
@@ -129,11 +103,25 @@ namespace YooAsset
 		}
 
 		/// <summary>
+		/// 句柄是否有效
+		/// </summary>
+		public bool IsValidNoWarning
+		{
+			get
+			{
+				if (Provider != null && Provider.IsDestroyed == false)
+					return true;
+				else
+					return false;
+			}
+		}
+
+		/// <summary>
 		/// 释放句柄
 		/// </summary>
 		internal void ReleaseInternal()
 		{
-			if (IsValidWithWarning == false)
+			if (IsValid == false)
 				return;
 			Provider.ReleaseHandle(this);
 			Provider = null;

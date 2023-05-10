@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.Networking;
-using UnityEngine;
 
 namespace YooAsset
 {
@@ -12,14 +11,8 @@ namespace YooAsset
 	/// </summary>
 	internal class UnityWebFileRequester
 	{
-		private UnityWebRequest _webRequest;
-		private UnityWebRequestAsyncOperation _operationHandle;
-
-		// 超时相关
-		private float _timeout;
-		private bool _isAbort = false;
-		private ulong _latestDownloadBytes;
-		private float _latestDownloadRealtime;
+		protected UnityWebRequest _webRequest;
+		protected UnityWebRequestAsyncOperation _operationHandle;
 
 		/// <summary>
 		/// 请求URL地址
@@ -30,16 +23,12 @@ namespace YooAsset
 		/// <summary>
 		/// 发送GET请求
 		/// </summary>
-		public void SendRequest(string url, string savePath, float timeout = 60)
+		public void SendRequest(string url, string savePath)
 		{
 			if (_webRequest == null)
 			{
 				URL = url;
-				_timeout = timeout;
-				_latestDownloadBytes = 0;
-				_latestDownloadRealtime = Time.realtimeSinceStartup;
-
-				_webRequest = DownloadSystem.NewRequest(URL);
+				_webRequest = new UnityWebRequest(URL, UnityWebRequest.kHttpVerbGET);
 				DownloadHandlerFile handler = new DownloadHandlerFile(savePath);
 				handler.removeFileOnAbort = true;
 				_webRequest.downloadHandler = handler;
@@ -106,29 +95,6 @@ namespace YooAsset
 				return $"URL : {URL} Error : {_webRequest.error}";
 			}
 			return string.Empty;
-		}
-
-		/// <summary>
-		/// 检测超时
-		/// </summary>
-		public void CheckTimeout()
-		{
-			// 注意：在连续时间段内无新增下载数据及判定为超时
-			if (_isAbort == false)
-			{
-				if (_latestDownloadBytes != _webRequest.downloadedBytes)
-				{
-					_latestDownloadBytes = _webRequest.downloadedBytes;
-					_latestDownloadRealtime = Time.realtimeSinceStartup;
-				}
-
-				float offset = Time.realtimeSinceStartup - _latestDownloadRealtime;
-				if (offset > _timeout)
-				{
-					_webRequest.Abort();
-					_isAbort = true;
-				}
-			}
 		}
 	}
 }

@@ -9,12 +9,12 @@ namespace YooAsset
 		/// <summary>
 		/// 依赖的资源包加载器列表
 		/// </summary>
-		internal readonly List<BundleLoaderBase> DependBundles;
+		private readonly List<AssetBundleLoaderBase> _dependBundles;
 
 
-		public DependAssetBundleGroup(List<BundleLoaderBase> dpendBundles)
+		public DependAssetBundleGroup(List<AssetBundleLoaderBase> dpendBundles)
 		{
-			DependBundles = dpendBundles;
+			_dependBundles = dpendBundles;
 		}
 
 		/// <summary>
@@ -22,7 +22,7 @@ namespace YooAsset
 		/// </summary>
 		public bool IsDone()
 		{
-			foreach (var loader in DependBundles)
+			foreach (var loader in _dependBundles)
 			{
 				if (loader.IsDone() == false)
 					return false;
@@ -35,9 +35,9 @@ namespace YooAsset
 		/// </summary>
 		public bool IsSucceed()
 		{
-			foreach (var loader in DependBundles)
+			foreach (var loader in _dependBundles)
 			{
-				if (loader.Status != BundleLoaderBase.EStatus.Succeed)
+				if (loader.Status != AssetBundleLoaderBase.EStatus.Succeed)
 				{
 					return false;
 				}
@@ -50,9 +50,9 @@ namespace YooAsset
 		/// </summary>
 		public string GetLastError()
 		{
-			foreach (var loader in DependBundles)
+			foreach (var loader in _dependBundles)
 			{
-				if (loader.Status != BundleLoaderBase.EStatus.Succeed)
+				if (loader.Status != AssetBundleLoaderBase.EStatus.Succeed)
 				{
 					return loader.LastError;
 				}
@@ -65,7 +65,7 @@ namespace YooAsset
 		/// </summary>
 		public void WaitForAsyncComplete()
 		{
-			foreach (var loader in DependBundles)
+			foreach (var loader in _dependBundles)
 			{
 				if (loader.IsDone() == false)
 					loader.WaitForAsyncComplete();
@@ -77,7 +77,7 @@ namespace YooAsset
 		/// </summary>
 		public void Reference()
 		{
-			foreach (var loader in DependBundles)
+			foreach (var loader in _dependBundles)
 			{
 				loader.Reference();
 			}
@@ -88,7 +88,7 @@ namespace YooAsset
 		/// </summary>
 		public void Release()
 		{
-			foreach (var loader in DependBundles)
+			foreach (var loader in _dependBundles)
 			{
 				loader.Release();
 			}
@@ -99,12 +99,12 @@ namespace YooAsset
 		/// </summary>
 		internal void GetBundleDebugInfos(List<DebugBundleInfo> output)
 		{
-			foreach (var loader in DependBundles)
+			foreach (var loader in _dependBundles)
 			{
 				var bundleInfo = new DebugBundleInfo();
-				bundleInfo.BundleName = loader.MainBundleInfo.Bundle.BundleName;
+				bundleInfo.BundleName = loader.MainBundleInfo.BundleName;
 				bundleInfo.RefCount = loader.RefCount;
-				bundleInfo.Status = loader.Status.ToString();
+				bundleInfo.Status = (int)loader.Status;
 				output.Add(bundleInfo);
 			}
 		}

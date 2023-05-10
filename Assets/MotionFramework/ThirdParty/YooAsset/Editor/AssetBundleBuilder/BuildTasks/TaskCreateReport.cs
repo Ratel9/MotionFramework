@@ -12,111 +12,109 @@ namespace YooAsset.Editor
 		{
 			var buildParameters = context.GetContextObject<BuildParametersContext>();
 			var buildMapContext = context.GetContextObject<BuildMapContext>();
-			var manifestContext = context.GetContextObject<ManifestContext>();
+			buildParameters.StopWatch();
 
 			var buildMode = buildParameters.Parameters.BuildMode;
 			if (buildMode != EBuildMode.SimulateBuild)
 			{
-				CreateReportFile(buildParameters, buildMapContext, manifestContext);
+				CreateReportFile(buildParameters, buildMapContext);
+			}
+			else
+			{
+				float buildSeconds = buildParameters.GetBuildingSeconds();
+				BuildRunner.Info($"Build time consuming {buildSeconds} seconds.");
 			}
 		}
 
-		private void CreateReportFile(BuildParametersContext buildParametersContext, BuildMapContext buildMapContext, ManifestContext manifestContext)
+		private void CreateReportFile(BuildParametersContext buildParameters, BuildMapContext buildMapContext)
 		{
-			var buildParameters = buildParametersContext.Parameters;
-
-			string packageOutputDirectory = buildParametersContext.GetPackageOutputDirectory();
-			PackageManifest manifest = manifestContext.Manifest;
-			BuildReport buildReport = new BuildReport();
+			PatchManifest patchManifest = AssetBundleBuilderHelper.LoadPatchManifestFile(buildParameters.PipelineOutputDirectory, buildParameters.Parameters.BuildVersion);
+			BuildReport buildReport = new BuildReport();		
 
 			// 概述信息
 			{
-#if UNITY_2019_4_OR_NEWER
-				UnityEditor.PackageManager.PackageInfo packageInfo = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(BuildReport).Assembly);
-				if (packageInfo != null)
-					buildReport.Summary.YooVersion = packageInfo.version;
-#endif
 				buildReport.Summary.UnityVersion = UnityEngine.Application.unityVersion;
-				buildReport.Summary.BuildDate = DateTime.Now.ToString();
-				buildReport.Summary.BuildSeconds = BuildRunner.TotalSeconds;
-				buildReport.Summary.BuildTarget = buildParameters.BuildTarget;
-				buildReport.Summary.BuildPipeline = buildParameters.BuildPipeline;
-				buildReport.Summary.BuildMode = buildParameters.BuildMode;
-				buildReport.Summary.BuildPackageName = buildParameters.PackageName;
-				buildReport.Summary.BuildPackageVersion = buildParameters.PackageVersion;
-				buildReport.Summary.EnableAddressable = buildMapContext.EnableAddressable;
-				buildReport.Summary.UniqueBundleName = buildMapContext.UniqueBundleName;
-				buildReport.Summary.EncryptionServicesClassName = buildParameters.EncryptionServices == null ?
-					"null" : buildParameters.EncryptionServices.GetType().FullName;
+				buildReport.Summary.BuildTime = DateTime.Now.ToString();
+				buildReport.Summary.BuildSeconds = (int)buildParameters.GetBuildingSeconds();
+				buildReport.Summary.BuildTarget = buildParameters.Parameters.BuildTarget;
+				buildReport.Summary.BuildMode = buildParameters.Parameters.BuildMode;
+				buildReport.Summary.BuildVersion = buildParameters.Parameters.BuildVersion;
+				buildReport.Summary.BuildinTags = buildParameters.Parameters.BuildinTags;
+				buildReport.Summary.EnableAddressable = buildParameters.Parameters.EnableAddressable;
+				buildReport.Summary.AppendFileExtension = buildParameters.Parameters.AppendFileExtension;
+				buildReport.Summary.CopyBuildinTagFiles = buildParameters.Parameters.CopyBuildinTagFiles;
+				buildReport.Summary.AutoCollectShaders = AssetBundleCollectorSettingData.Setting.AutoCollectShaders;
+				buildReport.Summary.ShadersBundleName = AssetBundleCollectorSettingData.Setting.ShadersBundleName;
+				buildReport.Summary.EncryptionServicesClassName = buildParameters.Parameters.EncryptionServices == null ?
+					"null" : buildParameters.Parameters.EncryptionServices.GetType().FullName;
 
 				// 构建参数
-				buildReport.Summary.OutputNameStyle = buildParameters.OutputNameStyle;
-				buildReport.Summary.CompressOption = buildParameters.CompressOption;
-				buildReport.Summary.DisableWriteTypeTree = buildParameters.DisableWriteTypeTree;
-				buildReport.Summary.IgnoreTypeTreeChanges = buildParameters.IgnoreTypeTreeChanges;
+				buildReport.Summary.CompressOption = buildParameters.Parameters.CompressOption;
+				buildReport.Summary.DisableWriteTypeTree = buildParameters.Parameters.DisableWriteTypeTree;
+				buildReport.Summary.IgnoreTypeTreeChanges = buildParameters.Parameters.IgnoreTypeTreeChanges;
 
 				// 构建结果
 				buildReport.Summary.AssetFileTotalCount = buildMapContext.AssetFileCount;
-				buildReport.Summary.MainAssetTotalCount = GetMainAssetCount(manifest);
-				buildReport.Summary.AllBundleTotalCount = GetAllBundleCount(manifest);
-				buildReport.Summary.AllBundleTotalSize = GetAllBundleSize(manifest);
-				buildReport.Summary.EncryptedBundleTotalCount = GetEncryptedBundleCount(manifest);
-				buildReport.Summary.EncryptedBundleTotalSize = GetEncryptedBundleSize(manifest);
-				buildReport.Summary.RawBundleTotalCount = GetRawBundleCount(manifest);
-				buildReport.Summary.RawBundleTotalSize = GetRawBundleSize(manifest);
+				buildReport.Summary.AllBundleTotalCount = GetAllBundleCount(patchManifest);
+				buildReport.Summary.AllBundleTotalSize = GetAllBundleSize(patchManifest);
+				buildReport.Summary.BuildinBundleTotalCount = GetBuildinBundleCount(patchManifest);
+				buildReport.Summary.BuildinBundleTotalSize = GetBuildinBundleSize(patchManifest);
+				buildReport.Summary.EncryptedBundleTotalCount = GetEncryptedBundleCount(patchManifest);
+				buildReport.Summary.EncryptedBundleTotalSize = GetEncryptedBundleSize(patchManifest);
+				buildReport.Summary.RawBundleTotalCount = GetRawBundleCount(patchManifest);
+				buildReport.Summary.RawBundleTotalSize = GetRawBundleSize(patchManifest);
 			}
 
 			// 资源对象列表
-			buildReport.AssetInfos = new List<ReportAssetInfo>(manifest.AssetList.Count);
-			foreach (var packageAsset in manifest.AssetList)
+			buildReport.AssetInfos = new List<ReportAssetInfo>(patchManifest.AssetList.Count);
+			foreach (var patchAsset in patchManifest.AssetList)
 			{
-				var mainBundle = manifest.BundleList[packageAsset.BundleID];
+				var mainBundle = patchManifest.BundleList[patchAsset.BundleID];
 				ReportAssetInfo reportAssetInfo = new ReportAssetInfo();
-				reportAssetInfo.Address = packageAsset.Address;
-				reportAssetInfo.AssetPath = packageAsset.AssetPath;
-				reportAssetInfo.AssetTags = packageAsset.AssetTags;
-				reportAssetInfo.AssetGUID = AssetDatabase.AssetPathToGUID(packageAsset.AssetPath);
+				reportAssetInfo.Address = patchAsset.Address;
+				reportAssetInfo.AssetPath = patchAsset.AssetPath;
+				reportAssetInfo.AssetTags = patchAsset.AssetTags;
+				reportAssetInfo.AssetGUID = AssetDatabase.AssetPathToGUID(patchAsset.AssetPath);
 				reportAssetInfo.MainBundleName = mainBundle.BundleName;
-				reportAssetInfo.MainBundleSize = mainBundle.FileSize;
-				reportAssetInfo.DependBundles = GetDependBundles(manifest, packageAsset);
-				reportAssetInfo.DependAssets = GetDependAssets(buildMapContext, mainBundle.BundleName, packageAsset.AssetPath);
+				reportAssetInfo.MainBundleSize = mainBundle.SizeBytes;
+				reportAssetInfo.DependBundles = GetDependBundles(patchManifest, patchAsset);
+				reportAssetInfo.DependAssets = GetDependAssets(buildMapContext, mainBundle.BundleName, patchAsset.AssetPath);
 				buildReport.AssetInfos.Add(reportAssetInfo);
 			}
 
 			// 资源包列表
-			buildReport.BundleInfos = new List<ReportBundleInfo>(manifest.BundleList.Count);
-			foreach (var packageBundle in manifest.BundleList)
+			buildReport.BundleInfos = new List<ReportBundleInfo>(patchManifest.BundleList.Count);
+			foreach (var patchBundle in patchManifest.BundleList)
 			{
 				ReportBundleInfo reportBundleInfo = new ReportBundleInfo();
-				reportBundleInfo.BundleName = packageBundle.BundleName;
-				reportBundleInfo.FileName = packageBundle.FileName;
-				reportBundleInfo.FileHash = packageBundle.FileHash;
-				reportBundleInfo.FileCRC = packageBundle.FileCRC;
-				reportBundleInfo.FileSize = packageBundle.FileSize;
-				reportBundleInfo.IsRawFile = packageBundle.IsRawFile;
-				reportBundleInfo.LoadMethod = (EBundleLoadMethod)packageBundle.LoadMethod;
-				reportBundleInfo.Tags = packageBundle.Tags;
-				reportBundleInfo.ReferenceIDs = packageBundle.ReferenceIDs;
-				reportBundleInfo.AllBuiltinAssets = GetAllBuiltinAssets(buildMapContext, packageBundle.BundleName);
+				reportBundleInfo.BundleName = patchBundle.BundleName;
+				reportBundleInfo.Hash = patchBundle.Hash;
+				reportBundleInfo.CRC = patchBundle.CRC;
+				reportBundleInfo.SizeBytes = patchBundle.SizeBytes;
+				reportBundleInfo.Tags = patchBundle.Tags;
+				reportBundleInfo.Flags = patchBundle.Flags;
 				buildReport.BundleInfos.Add(reportBundleInfo);
 			}
 
+			// 删除旧文件
+			string filePath = $"{buildParameters.PipelineOutputDirectory}/{YooAssetSettingsData.GetReportFileName(buildParameters.Parameters.BuildVersion)}";
+			if (File.Exists(filePath))
+				File.Delete(filePath);
+
 			// 序列化文件
-			string fileName = YooAssetSettingsData.GetReportFileName(buildParameters.PackageName, buildParameters.PackageVersion);
-			string filePath = $"{packageOutputDirectory}/{fileName}";
 			BuildReport.Serialize(filePath, buildReport);
-			BuildLogger.Log($"资源构建报告文件创建完成：{filePath}");
+			BuildRunner.Log($"资源构建报告文件创建完成：{filePath}");
 		}
 
 		/// <summary>
 		/// 获取资源对象依赖的所有资源包
 		/// </summary>
-		private List<string> GetDependBundles(PackageManifest manifest, PackageAsset packageAsset)
+		private List<string> GetDependBundles(PatchManifest patchManifest, PatchAsset patchAsset)
 		{
-			List<string> dependBundles = new List<string>(packageAsset.DependIDs.Length);
-			foreach (int index in packageAsset.DependIDs)
+			List<string> dependBundles = new List<string>(patchAsset.DependIDs.Length);
+			foreach (int index in patchAsset.DependIDs)
 			{
-				string dependBundleName = manifest.BundleList[index].BundleName;
+				string dependBundleName = patchManifest.BundleList[index].BundleName;
 				dependBundles.Add(dependBundleName);
 			}
 			return dependBundles;
@@ -128,14 +126,14 @@ namespace YooAsset.Editor
 		private List<string> GetDependAssets(BuildMapContext buildMapContext, string bundleName, string assetPath)
 		{
 			List<string> result = new List<string>();
-			var bundleInfo = buildMapContext.GetBundleInfo(bundleName);
+			if (buildMapContext.TryGetBundleInfo(bundleName, out BuildBundleInfo bundleInfo))
 			{
 				BuildAssetInfo findAssetInfo = null;
-				foreach (var assetInfo in bundleInfo.AllMainAssets)
+				foreach (var buildinAsset in bundleInfo.BuildinAssets)
 				{
-					if (assetInfo.AssetPath == assetPath)
+					if (buildinAsset.AssetPath == assetPath)
 					{
-						findAssetInfo = assetInfo;
+						findAssetInfo = buildinAsset;
 						break;
 					}
 				}
@@ -148,72 +146,83 @@ namespace YooAsset.Editor
 					result.Add(dependAssetInfo.AssetPath);
 				}
 			}
+			else
+			{
+				throw new Exception($"Not found bundle : {bundleName}");
+			}
 			return result;
 		}
 
-		/// <summary>
-		/// 获取该资源包内的所有资源（包括零依赖资源）
-		/// </summary>
-		private List<string> GetAllBuiltinAssets(BuildMapContext buildMapContext, string bundleName)
+		private int GetAllBundleCount(PatchManifest patchManifest)
 		{
-			var bundleInfo = buildMapContext.GetBundleInfo(bundleName);
-			return bundleInfo.GetAllBuiltinAssetPaths();
+			return patchManifest.BundleList.Count;
 		}
-
-		private int GetMainAssetCount(PackageManifest manifest)
-		{
-			return manifest.AssetList.Count;
-		}
-		private int GetAllBundleCount(PackageManifest manifest)
-		{
-			return manifest.BundleList.Count;
-		}
-		private long GetAllBundleSize(PackageManifest manifest)
+		private long GetAllBundleSize(PatchManifest patchManifest)
 		{
 			long fileBytes = 0;
-			foreach (var packageBundle in manifest.BundleList)
+			foreach (var patchBundle in patchManifest.BundleList)
 			{
-				fileBytes += packageBundle.FileSize;
+				fileBytes += patchBundle.SizeBytes;
 			}
 			return fileBytes;
 		}
-		private int GetEncryptedBundleCount(PackageManifest manifest)
+		private int GetBuildinBundleCount(PatchManifest patchManifest)
 		{
 			int fileCount = 0;
-			foreach (var packageBundle in manifest.BundleList)
+			foreach (var patchBundle in patchManifest.BundleList)
 			{
-				if (packageBundle.LoadMethod != (byte)EBundleLoadMethod.Normal)
+				if (patchBundle.IsBuildin)
 					fileCount++;
 			}
 			return fileCount;
 		}
-		private long GetEncryptedBundleSize(PackageManifest manifest)
+		private long GetBuildinBundleSize(PatchManifest patchManifest)
 		{
 			long fileBytes = 0;
-			foreach (var packageBundle in manifest.BundleList)
+			foreach (var patchBundle in patchManifest.BundleList)
 			{
-				if (packageBundle.LoadMethod != (byte)EBundleLoadMethod.Normal)
-					fileBytes += packageBundle.FileSize;
+				if (patchBundle.IsBuildin)
+					fileBytes += patchBundle.SizeBytes;
 			}
 			return fileBytes;
 		}
-		private int GetRawBundleCount(PackageManifest manifest)
+		private int GetEncryptedBundleCount(PatchManifest patchManifest)
 		{
 			int fileCount = 0;
-			foreach (var packageBundle in manifest.BundleList)
+			foreach (var patchBundle in patchManifest.BundleList)
 			{
-				if (packageBundle.IsRawFile)
+				if (patchBundle.IsEncrypted)
 					fileCount++;
 			}
 			return fileCount;
 		}
-		private long GetRawBundleSize(PackageManifest manifest)
+		private long GetEncryptedBundleSize(PatchManifest patchManifest)
 		{
 			long fileBytes = 0;
-			foreach (var packageBundle in manifest.BundleList)
+			foreach (var patchBundle in patchManifest.BundleList)
 			{
-				if (packageBundle.IsRawFile)
-					fileBytes += packageBundle.FileSize;
+				if (patchBundle.IsEncrypted)
+					fileBytes += patchBundle.SizeBytes;
+			}
+			return fileBytes;
+		}
+		private int GetRawBundleCount(PatchManifest patchManifest)
+		{
+			int fileCount = 0;
+			foreach (var patchBundle in patchManifest.BundleList)
+			{
+				if (patchBundle.IsRawFile)
+					fileCount++;
+			}
+			return fileCount;
+		}
+		private long GetRawBundleSize(PatchManifest patchManifest)
+		{
+			long fileBytes = 0;
+			foreach (var patchBundle in patchManifest.BundleList)
+			{
+				if (patchBundle.IsRawFile)
+					fileBytes += patchBundle.SizeBytes;
 			}
 			return fileBytes;
 		}

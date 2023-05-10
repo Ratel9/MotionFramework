@@ -38,7 +38,7 @@ namespace YooAsset.Editor
 		public void InitViewer()
 		{
 			// 加载布局文件
-			_visualAsset = UxmlLoader.LoadWindowUXML<ReporterAssetListViewer>();
+			_visualAsset = EditorHelper.LoadWindowUXML<ReporterAssetListViewer>();
 			if (_visualAsset == null)
 				return;
 
@@ -68,10 +68,6 @@ namespace YooAsset.Editor
 			_dependListView = _root.Q<ListView>("BottomListView");
 			_dependListView.makeItem = MakeDependListViewItem;
 			_dependListView.bindItem = BindDependListViewItem;
-
-#if UNITY_2020_3_OR_NEWER
-			SplitView.Adjuster(_root);
-#endif
 		}
 
 		/// <summary>
@@ -314,11 +310,11 @@ namespace YooAsset.Editor
 
 			// Size
 			var label2 = element.Q<Label>("Label2");
-			label2.text = EditorUtility.FormatBytes(bundleInfo.FileSize);
+			label2.text = EditorUtility.FormatBytes(bundleInfo.SizeBytes);
 
 			// Hash
 			var label3 = element.Q<Label>("Label3");
-			label3.text = bundleInfo.FileHash;
+			label3.text = bundleInfo.Hash;
 		}
 	}
 }

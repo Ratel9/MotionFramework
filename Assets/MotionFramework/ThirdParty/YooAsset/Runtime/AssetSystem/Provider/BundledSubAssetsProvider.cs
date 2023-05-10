@@ -4,17 +4,24 @@ using UnityEngine;
 
 namespace YooAsset
 {
-	internal sealed class BundledSubAssetsProvider : ProviderBase
+	internal sealed class BundledSubAssetsProvider : BundledProvider
 	{
 		private AssetBundleRequest _cacheRequest;
+		public override float Progress
+		{
+			get
+			{
+				if (_cacheRequest == null)
+					return 0;
+				return _cacheRequest.progress;
+			}
+		}
 
-		public BundledSubAssetsProvider(AssetSystemImpl impl, string providerGUID, AssetInfo assetInfo) : base(impl, providerGUID, assetInfo)
+		public BundledSubAssetsProvider(AssetInfo assetInfo) : base(assetInfo)
 		{
 		}
 		public override void Update()
 		{
-			DebugBeginRecording();
-
 			if (IsDone)
 				return;
 
@@ -39,15 +46,15 @@ namespace YooAsset
 
 				if (DependBundleGroup.IsSucceed() == false)
 				{
-					Status = EStatus.Failed;
+					Status = EStatus.Fail;
 					LastError = DependBundleGroup.GetLastError();
 					InvokeCompletion();
 					return;
 				}
 
-				if (OwnerBundle.Status != BundleLoaderBase.EStatus.Succeed)
+				if (OwnerBundle.Status != AssetBundleLoaderBase.EStatus.Succeed)
 				{
-					Status = EStatus.Failed;
+					Status = EStatus.Fail;
 					LastError = OwnerBundle.LastError;
 					InvokeCompletion();
 					return;
@@ -89,20 +96,19 @@ namespace YooAsset
 					}
 					else
 					{
-						Progress = _cacheRequest.progress;
 						if (_cacheRequest.isDone == false)
 							return;
 						AllAssetObjects = _cacheRequest.allAssets;
 					}
 				}
 
-				Status = AllAssetObjects == null ? EStatus.Failed : EStatus.Succeed;
-				if (Status == EStatus.Failed)
+				Status = AllAssetObjects == null ? EStatus.Fail : EStatus.Success;
+				if (Status == EStatus.Fail)
 				{
 					if (MainAssetInfo.AssetType == null)
-						LastError = $"Failed to load sub assets : {MainAssetInfo.AssetPath} AssetType : null AssetBundle : {OwnerBundle.MainBundleInfo.Bundle.BundleName}";
+						LastError = $"Failed to load sub assets : {MainAssetInfo.AssetPath} AssetType : null AssetBundle : {OwnerBundle.MainBundleInfo.BundleName}";
 					else
-						LastError = $"Failed to load sub assets : {MainAssetInfo.AssetPath} AssetType : {MainAssetInfo.AssetType} AssetBundle : {OwnerBundle.MainBundleInfo.Bundle.BundleName}";
+						LastError = $"Failed to load sub assets : {MainAssetInfo.AssetPath} AssetType : {MainAssetInfo.AssetType} AssetBundle : {OwnerBundle.MainBundleInfo.BundleName}";
 					YooLogger.Error(LastError);
 				}
 				InvokeCompletion();

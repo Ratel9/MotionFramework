@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,32 +6,25 @@ using UnityEngine.Networking;
 
 namespace YooAsset
 {
-	/// <summary>
-	/// WebGL平台加载器
-	/// </summary>
-	internal sealed class AssetBundleWebLoader : BundleLoaderBase
+	internal sealed class AssetBundleWebLoader : AssetBundleLoaderBase
 	{
 		private enum ESteps
 		{
 			None = 0,
-			Download,
-			CheckDownload,
-			LoadCacheFile,
-			CheckLoadCacheFile,
-			LoadWebFile,
-			CheckLoadWebFile,
-			TryLoadWebFile,
+			LoadFile,
+			CheckFile,
+			TryLoad,
 			Done,
 		}
 
 		private ESteps _steps = ESteps.None;
 		private float _tryTimer = 0;
-		private DownloaderBase _downloader;
+		private string _webURL;
+		private bool _isShowWaitForAsyncError = false;
 		private UnityWebRequest _webRequest;
-		private AssetBundleCreateRequest _createRequest;
 
 
-		public AssetBundleWebLoader(AssetSystemImpl impl, BundleInfo bundleInfo) : base(impl, bundleInfo)
+		public AssetBundleWebLoader(BundleInfo bundleInfo) : base(bundleInfo)
 		{
 		}
 
@@ -46,20 +38,19 @@ namespace YooAsset
 
 			if (_steps == ESteps.None)
 			{
-				if (MainBundleInfo.LoadMode == BundleInfo.ELoadMode.LoadFromRemote)
+				if (MainBundleInfo.IsInvalid)
 				{
-					_steps = ESteps.Download;
-					FileLoadPath = MainBundleInfo.Bundle.CachedDataFilePath;
+					_steps = ESteps.Done;
+					Status = EStatus.Failed;
+					LastError = $"The bundle info is invalid : {MainBundleInfo.BundleName}";
+					YooLogger.Error(LastError);
+					return;
 				}
-				else if (MainBundleInfo.LoadMode == BundleInfo.ELoadMode.LoadFromStreaming)
+
+				if (MainBundleInfo.LoadMode == BundleInfo.ELoadMode.LoadFromStreaming)
 				{
-					_steps = ESteps.LoadWebFile;
-					FileLoadPath = MainBundleInfo.Bundle.StreamingFilePath;
-				}
-				else if (MainBundleInfo.LoadMode == BundleInfo.ELoadMode.LoadFromCache)
-				{
-					_steps = ESteps.LoadCacheFile;
-					FileLoadPath = MainBundleInfo.Bundle.CachedDataFilePath;
+					_steps = ESteps.LoadFile;
+					_webURL = MainBundleInfo.GetStreamingLoadPath();
 				}
 				else
 				{
@@ -67,117 +58,18 @@ namespace YooAsset
 				}
 			}
 
-			// 1. 从服务器下载
-			if (_steps == ESteps.Download)
+			// 1. 从服务器或缓存中获取AssetBundle文件
+			if (_steps == ESteps.LoadFile)
 			{
-				int failedTryAgain = Impl.DownloadFailedTryAgain;
-				_downloader = DownloadSystem.BeginDownload(MainBundleInfo, failedTryAgain);
-				_steps = ESteps.CheckDownload;
-			}
-
-			// 2. 检测服务器下载结果
-			if (_steps == ESteps.CheckDownload)
-			{
-				DownloadProgress = _downloader.DownloadProgress;
-				DownloadedBytes = _downloader.DownloadedBytes;
-				if (_downloader.IsDone() == false)
-					return;
-
-				if (_downloader.HasError())
-				{
-					_steps = ESteps.Done;
-					Status = EStatus.Failed;
-					LastError = _downloader.GetLastError();
-				}
-				else
-				{
-					_steps = ESteps.LoadCacheFile;
-				}
-			}
-
-			// 3. 从本地缓存里加载AssetBundle
-			if (_steps == ESteps.LoadCacheFile)
-			{
-#if UNITY_EDITOR
-				// 注意：Unity2017.4编辑器模式下，如果AssetBundle文件不存在会导致编辑器崩溃，这里做了预判。
-				if (System.IO.File.Exists(FileLoadPath) == false)
-				{
-					_steps = ESteps.Done;
-					Status = EStatus.Failed;
-					LastError = $"Not found assetBundle file : {FileLoadPath}";
-					YooLogger.Error(LastError);
-					return;
-				}
-#endif
-
-				// 设置下载进度
-				DownloadProgress = 1f;
-				DownloadedBytes = (ulong)MainBundleInfo.Bundle.FileSize;
-
-				// Load assetBundle file
-				var loadMethod = (EBundleLoadMethod)MainBundleInfo.Bundle.LoadMethod;
-				if (loadMethod == EBundleLoadMethod.Normal)
-				{
-					_createRequest = AssetBundle.LoadFromFileAsync(FileLoadPath);
-				}
-				else
-				{
-					_steps = ESteps.Done;
-					Status = EStatus.Failed;
-					LastError = $"WebGL not support encrypted bundle file : {MainBundleInfo.Bundle.BundleName}";
-					YooLogger.Error(LastError);
-					return;
-				}
-				_steps = ESteps.CheckLoadCacheFile;
-			}
-
-			// 4. 检测AssetBundle加载结果
-			if (_steps == ESteps.CheckLoadCacheFile)
-			{
-				if (_createRequest.isDone == false)
-					return;
-
-				CacheBundle = _createRequest.assetBundle;
-				if (CacheBundle == null)
-				{
-					_steps = ESteps.Done;
-					Status = EStatus.Failed;
-					LastError = $"Failed to load AssetBundle file : {MainBundleInfo.Bundle.BundleName}";
-					YooLogger.Error(LastError);
-
-					// 注意：当缓存文件的校验等级为Low的时候，并不能保证缓存文件的完整性。
-					// 在AssetBundle文件加载失败的情况下，我们需要重新验证文件的完整性！
-					if (MainBundleInfo.LoadMode == BundleInfo.ELoadMode.LoadFromCache)
-					{
-						var result = CacheSystem.VerifyingRecordFile(MainBundleInfo.Bundle.PackageName, MainBundleInfo.Bundle.CacheGUID);
-						if (result != EVerifyResult.Succeed)
-						{
-							YooLogger.Error($"Found possibly corrupt file ! {MainBundleInfo.Bundle.CacheGUID}");
-							CacheSystem.DiscardFile(MainBundleInfo.Bundle.PackageName, MainBundleInfo.Bundle.CacheGUID);
-						}
-					}
-				}
-				else
-				{
-					_steps = ESteps.Done;
-					Status = EStatus.Succeed;
-				}
-			}
-
-			// 5. 从WEB网站获取AssetBundle文件
-			if (_steps == ESteps.LoadWebFile)
-			{
-				var hash = Hash128.Parse(MainBundleInfo.Bundle.FileHash);
-				_webRequest = UnityWebRequestAssetBundle.GetAssetBundle(FileLoadPath, hash);
+				string hash = StringUtility.RemoveExtension(MainBundleInfo.Hash);
+				_webRequest = UnityWebRequestAssetBundle.GetAssetBundle(_webURL, Hash128.Parse(hash));
 				_webRequest.SendWebRequest();
-				_steps = ESteps.CheckLoadWebFile;
+				_steps = ESteps.CheckFile;
 			}
 
-			// 6. 检测AssetBundle加载结果
-			if (_steps == ESteps.CheckLoadWebFile)
+			// 2. 检测获取的AssetBundle文件
+			if (_steps == ESteps.CheckFile)
 			{
-				DownloadProgress = _webRequest.downloadProgress;
-				DownloadedBytes = _webRequest.downloadedBytes;
 				if (_webRequest.isDone == false)
 					return;
 
@@ -187,8 +79,8 @@ namespace YooAsset
 				if (_webRequest.isNetworkError || _webRequest.isHttpError)
 #endif
 				{
-					YooLogger.Warning($"Failed to get asset bundle from web : {FileLoadPath} Error : {_webRequest.error}");
-					_steps = ESteps.TryLoadWebFile;
+					YooLogger.Warning($"Failed to get asset bundle form web : {_webURL} Error : {_webRequest.error}");
+					_steps = ESteps.TryLoad;
 					_tryTimer = 0;
 				}
 				else
@@ -198,7 +90,7 @@ namespace YooAsset
 					{
 						_steps = ESteps.Done;
 						Status = EStatus.Failed;
-						LastError = $"AssetBundle file is invalid : {MainBundleInfo.Bundle.BundleName}";
+						LastError = $"AssetBundle file is invalid : {MainBundleInfo.BundleName}";
 						YooLogger.Error(LastError);
 					}
 					else
@@ -209,15 +101,15 @@ namespace YooAsset
 				}
 			}
 
-			// 7. 如果获取失败，重新尝试
-			if (_steps == ESteps.TryLoadWebFile)
+			// 3. 如果获取失败，重新尝试
+			if (_steps == ESteps.TryLoad)
 			{
 				_tryTimer += Time.unscaledDeltaTime;
 				if (_tryTimer > 1f)
 				{
 					_webRequest.Dispose();
 					_webRequest = null;
-					_steps = ESteps.LoadWebFile;
+					_steps = ESteps.LoadFile;
 				}
 			}
 		}
@@ -227,11 +119,10 @@ namespace YooAsset
 		/// </summary>
 		public override void WaitForAsyncComplete()
 		{
-			if (IsDone() == false)
+			if (_isShowWaitForAsyncError == false)
 			{
-				Status = EStatus.Failed;
-				LastError = $"{nameof(WaitForAsyncComplete)} failed ! WebGL platform not support sync load method !";
-				YooLogger.Error(LastError);
+				_isShowWaitForAsyncError = true;
+				YooLogger.Error($"WebGL platform not support {nameof(WaitForAsyncComplete)} ! Use the async load method instead of the sync load method !");
 			}
 		}
 	}

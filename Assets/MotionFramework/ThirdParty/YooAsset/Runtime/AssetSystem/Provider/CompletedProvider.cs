@@ -3,18 +3,29 @@ namespace YooAsset
 {
 	internal sealed class CompletedProvider : ProviderBase
 	{
-		public CompletedProvider(AssetInfo assetInfo) : base(null, string.Empty, assetInfo)
+		public override float Progress
+		{
+			get
+			{
+				if (IsDone)
+					return 1f;
+				else
+					return 0;
+			}
+		}
+
+		public CompletedProvider(AssetInfo assetInfo) : base(assetInfo)
 		{
 		}
 		public override void Update()
 		{
-		}
-		public void SetCompleted(string error)
-		{
+			if (IsDone)
+				return;
+
 			if (Status == EStatus.None)
 			{
-				Status = EStatus.Failed;
-				LastError = error;
+				Status = EStatus.Fail;
+				LastError = MainAssetInfo.Error;
 				InvokeCompletion();
 			}
 		}
